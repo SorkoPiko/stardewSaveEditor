@@ -33,7 +33,7 @@ def initialize(savePath):
     parsedSaveGameInfo = ET.parse(os.path.join(savePath, 'SaveGameInfo'))
     sGIRoot = parsedSaveGameInfo.getroot()
     root = parsedXml.getroot()
-    postInit()
+    #postInit()
 
 def postInit():
     global root, split
