@@ -20,14 +20,23 @@ def initialize(savePath):
     '''
     global dirName, root, split, parsedXml, parsedSaveGameInfo, sGIRoot, root
     if not os.path.isdir(savePath):
-        raise StardewSaveError('Doesn\'t seem to be a Stardew Valley save, or the folder structure is invalid.')
-
-    dirName = os.path.basename(os.path.normpath(savePath))
+        raise StardewSaveError('Isn\'t a directory.')
+    
+    dirName:str = os.path.basename(os.path.normpath(savePath))
 
     split = dirName.split('_')
 
-    if not os.path.exists(os.path.join(savePath, 'SaveGameInfo')) and not os.path.exists(os.path.join(savePath, dirName)):
-        raise StardewSaveError('Doesn\'t seem to be a Stardew Valley save, or the folder structure is invalid.')
+    if not os.path.exists(os.path.join(savePath, dirName)):
+        raise StardewSaveError(f'Missing save file {dirName}.')
+
+    if not os.path.exists(os.path.join(savePath, f'{dirName}_old')):
+        raise StardewSaveError(f'Missing save file {dirName}_old.')
+
+    if not os.path.exists(os.path.join(savePath, 'SaveGameInfo')):
+        raise StardewSaveError('Missing save file SaveGameInfo.')
+
+    if not os.path.exists(os.path.join(savePath, 'SaveGameInfo_old')):
+        raise StardewSaveError('Missing save file SaveGameInfo_old.')
 
     parsedXml = ET.parse(os.path.join(savePath, dirName))
     parsedSaveGameInfo = ET.parse(os.path.join(savePath, 'SaveGameInfo'))
