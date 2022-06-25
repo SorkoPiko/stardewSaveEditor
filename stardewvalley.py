@@ -1,6 +1,7 @@
-import shutil, os
+import shutil, os, datetime
 from stardewLibs import HelperLibraries, StardewSaveError
 from types import NoneType
+from csRandom import Random
 import xml.etree.ElementTree as ET
 
 backup = True
@@ -10,6 +11,7 @@ changeOptions = {'name':1,
                 'itemView':0,
                 'buildingView':0,
                 'monstersSlayed':0,
+                'nextTrain':0,
                 'changeSave':0,}
 
 savePath = input('Please drag save folder here: ')
@@ -22,7 +24,7 @@ def initialize(savePath):
     if not os.path.isdir(savePath):
         raise StardewSaveError('Isn\'t a directory.')
     
-    dirName:str = os.path.basename(os.path.normpath(savePath))
+    dirName = os.path.basename(os.path.normpath(savePath))
 
     split = dirName.split('_')
 
@@ -42,17 +44,15 @@ def initialize(savePath):
     parsedSaveGameInfo = ET.parse(os.path.join(savePath, 'SaveGameInfo'))
     sGIRoot = parsedSaveGameInfo.getroot()
     root = parsedXml.getroot()
-    #postInit()
 
-def postInit():
-    global root, split
-    '''
-    Post-Initialization
-    '''
-    if root.find('player').find('name').text != split[0]:
-        print(root.find('player').find('name').text)
-        print('invalid xml file')
-        exit()
+    gameID = root.find('uniqueIDForThisGame').text
+
+    #print(root.find('player').find('uniqueIDForThisGame').text)
+    if split[1] != gameID:
+        raise StardewSaveError('Game IDs do not match.')
+    
+    print(f'Season: {root.find("currentSeason").text}  Day: {root.find("dayOfMonth").text}')
+
 
 def nameCmd(name:list):
     global savePath, backup
@@ -111,6 +111,9 @@ def questviewCmd():
         print(f'      {quest}')
 
 def itemviewCmd():
+    '''
+    Lists all your current items.
+    '''
     global root
     for item in root.find('player').find('items').findall('Item'):
         if '{http://www.w3.org/2001/XMLSchema-instance}type' in item.attrib:
@@ -125,24 +128,66 @@ def itemviewCmd():
             
             if itemTypeNew[0] == ' ':
                 itemTypeNew = itemTypeNew[1:]
-                
             print(f'{itemTypeNew}: {itemName}')
         else:
             print('Empty: None')
 
 def monstersslayedCmd():
+    '''
+    Lists the monsters you have slayed.
+    '''
     for item in root.find("player").find("stats").find('specificMonstersKilled'):
-        name = item.get('key').get('string').text
-        amount = item.get('value').get('int').text
-        print(f'{name}: {amount}')
+        if item != NoneType:
+            name = item.get('key').get('string').text
+            amount = item.get('value').get('int').text
+            print(f'{name}: {amount}')
 
 def buildingviewCmd():
-    community_center = HelperLibraries.getLocation(root, "CommunityCenter")
-    for element in community_center:
-        print(element.text)
-    areasComplete = community_center.find("areasComplete").findall("boolean")
-    for area in areasComplete:
-        print(area.text)
+    '''
+    Lists the '''
+    for item in root.find("player").find("stats").find('buildings').findall('Item'):
+        if item != NoneType:
+            name = item.find('Name').text
+            amount = item.find('Amount').text
+            print(f'{name}: {amount}')
+
+def nexttrainCmd():
+    #Thanks to MouseyPounds, https://github.com/MouseyPounds/stardew-predictor/blob/b32d9ad2e7de177c4b67136bbb88843e4258b11b/stardew-predictor.js#L4251
+    '''
+    Shows the next time a train will appear.
+    '''
+    gameID = int(root.find('uniqueIDForThisGame').text)
+    daysPlayed = int(root.find('player').find('stats').find('daysPlayed').text)
+    dayOfMonth = int(root.find('dayOfMonth').text)
+    foundTrain:bool = False
+    offset = 0
+    days = 0
+    while not foundTrain and offset < 28-int(root.find('dayOfMonth').text):
+        days = daysPlayed + offset
+        gen = Random(int(gameID/2+days))
+        sample = gen.Sample()
+        #print(sample)
+        if sample < 0.2:
+            trainTime = gen.Next(900,1800)
+            trainTime -= trainTime % 10
+            hour = round(trainTime/100)
+            min = trainTime%100
+            if min < 60:
+                if hour > 12:
+                    hour -= 12
+                    ampm = 'PM'
+                elif hour == 12:
+                    ampm = 'PM'
+                else:
+                    ampm = 'AM'
+                if min == 0:
+                    min = '00'
+                print(f'Next train on the {dayOfMonth+offset}th day at {hour}:{min} {ampm}.')
+        offset += 1
+    if not foundTrain:
+        print('No more trains this season.')
+
+
 
 def changesaveCmd(savePathLocal:str=None):
     '''
